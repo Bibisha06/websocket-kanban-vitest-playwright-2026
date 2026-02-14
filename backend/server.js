@@ -35,6 +35,7 @@ const ALLOWED_FIELDS = [
   "priority",
   "category",
   "attachments",
+  "assignee",
 ];
 
 // ---------------------
@@ -51,10 +52,7 @@ io.on("connection", async (socket) => {
     socket.emit("sync:tasks", tasks);
   } catch (error) {
     console.error("Error fetching tasks:", error);
-    socket.emit("task:error", {
-      action: "sync",
-      message: "Failed to fetch tasks",
-    });
+    socket.emit("error", { message: "Failed to fetch tasks" });
   }
 
   // ---------------------
@@ -62,21 +60,25 @@ io.on("connection", async (socket) => {
   // ---------------------
   socket.on("task:create", async (taskData, callback) => {
     try {
+      const status = taskData.status || "todo";
       const newTask = await Task.create({
         title: taskData.title || "Untitled Task",
         description: taskData.description || "",
-        status: taskData.status || "todo",
+        status,
         priority: taskData.priority || "medium",
         category: taskData.category || "feature",
         attachments: taskData.attachments || [],
+        assignee: taskData.assignee || null,
+        statusHistory: [{ status, changedAt: new Date() }],
       });
 
-      // Broadcast to ALL clients
-      io.emit("task:create", newTask);
+      // Broadcast to ALL clients (frontend listens for task:created)
+      io.emit("task:created", newTask);
 
       callback?.({ status: "ok", task: newTask });
     } catch (error) {
       console.error("Error creating task:", error);
+      socket.emit("error", { message: "Failed to create task" });
       callback?.({ status: "error", message: "Failed to create task" });
     }
   });
@@ -94,17 +96,28 @@ io.on("connection", async (socket) => {
         });
       }
 
-      // Only allow specific fields
-      const updates = {};
+      const current = await Task.findById(taskId).lean();
+      if (!current) {
+        return callback?.({ status: "error", message: "Task not found" });
+      }
+
+      const setFields = {};
       for (const field of ALLOWED_FIELDS) {
         if (taskData[field] !== undefined) {
-          updates[field] = taskData[field];
+          setFields[field] = taskData[field];
         }
+      }
+
+      const updateDoc = { $set: setFields };
+      if (taskData.status !== undefined && taskData.status !== current.status) {
+        updateDoc.$push = { statusHistory: { status: taskData.status, changedAt: new Date() } };
+        if (taskData.status === "inprogress") setFields.startedAt = new Date();
+        if (taskData.status === "done") setFields.completedAt = new Date();
       }
 
       const updatedTask = await Task.findByIdAndUpdate(
         taskId,
-        updates,
+        updateDoc,
         { new: true, runValidators: true }
       );
 
@@ -115,11 +128,12 @@ io.on("connection", async (socket) => {
         });
       }
 
-      io.emit("task:update", updatedTask);
+      io.emit("task:updated", updatedTask);
 
       callback?.({ status: "ok", task: updatedTask });
     } catch (error) {
       console.error("Error updating task:", error);
+      socket.emit("error", { message: "Failed to update task" });
       callback?.({ status: "error", message: "Failed to update task" });
     }
   });
@@ -136,9 +150,17 @@ io.on("connection", async (socket) => {
         });
       }
 
+      const now = new Date();
+      const update = {
+        status: newStatus,
+        $push: { statusHistory: { status: newStatus, changedAt: now } },
+      };
+      if (newStatus === "inprogress") update.startedAt = now;
+      if (newStatus === "done") update.completedAt = now;
+
       const updatedTask = await Task.findByIdAndUpdate(
         taskId,
-        { status: newStatus },
+        update,
         { new: true }
       );
 
@@ -149,11 +171,13 @@ io.on("connection", async (socket) => {
         });
       }
 
-      io.emit("task:move", updatedTask);
+      // Frontend expects task:moved with { task }
+      io.emit("task:moved", { task: updatedTask });
 
       callback?.({ status: "ok", task: updatedTask });
     } catch (error) {
       console.error("Error moving task:", error);
+      socket.emit("error", { message: "Failed to move task" });
       callback?.({ status: "error", message: "Failed to move task" });
     }
   });
@@ -179,28 +203,32 @@ io.on("connection", async (socket) => {
         });
       }
 
-      io.emit("task:delete", taskId);
+      io.emit("task:deleted", taskId);
 
       callback?.({ status: "ok", taskId });
     } catch (error) {
       console.error("Error deleting task:", error);
+      socket.emit("error", { message: "Failed to delete task" });
       callback?.({ status: "error", message: "Failed to delete task" });
     }
   });
 
   // ---------------------
-  // MANUAL SYNC REQUEST
+  // MANUAL SYNC REQUEST (frontend emits sync:request)
   // ---------------------
-  socket.on("sync:tasks", async (callback) => {
+  const handleSync = async (callback) => {
     try {
       const tasks = await Task.find().sort({ createdAt: -1 });
       socket.emit("sync:tasks", tasks);
       callback?.({ status: "ok" });
     } catch (error) {
       console.error("Error syncing tasks:", error);
+      socket.emit("error", { message: "Failed to sync tasks" });
       callback?.({ status: "error", message: "Failed to sync tasks" });
     }
-  });
+  };
+  socket.on("sync:request", handleSync);
+  socket.on("sync:tasks", handleSync);
 
   // ---------------------
   // DISCONNECT

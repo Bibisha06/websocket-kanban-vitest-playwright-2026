@@ -26,6 +26,15 @@ const taskSchema = new mongoose.Schema(
       enum: ["bug", "feature", "enhancement"],
       default: "feature",
     },
+    assignee: { type: String, default: null },
+    startedAt: { type: Date, default: null },
+    completedAt: { type: Date, default: null },
+    statusHistory: [
+      {
+        status: String,
+        changedAt: { type: Date, default: Date.now },
+      },
+    ],
     attachments: [
       {
         fileName: String,
@@ -35,7 +44,7 @@ const taskSchema = new mongoose.Schema(
     ],
   },
   {
-    timestamps: true, // Automatically adds createdAt and updatedAt
+    timestamps: true, // createdAt, updatedAt
   }
 );
 
