@@ -1,44 +1,132 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import io from "socket.io-client";
 import TaskCard from "./TaskCard";
+import TaskForm from "./TaskForm";
+import ProgressChart from "./ProgressChart";
 
-function KanbanBoard({
-  tasks = [],
-  socket,
-  loading,
-  syncing,
-  onSync,
-  onEditTask,
-  onDeleteTask,
-  onViewTask,
-  onNewTask,
-}) {
+const SOCKET_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
+function KanbanBoard() {
+  const [tasks, setTasks] = useState([]);
+  const [socket, setSocket] = useState(null);
+  const [showTaskForm, setShowTaskForm] = useState(false);
+  const [editingTask, setEditingTask] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // WebSocket connection
+  useEffect(() => {
+    const newSocket = io(SOCKET_URL);
+    setSocket(newSocket);
+
+    // Listen for initial task sync
+    newSocket.on("sync:tasks", (syncedTasks) => {
+      setTasks(syncedTasks);
+      setLoading(false);
+    });
+
+    // Listen for new tasks created by other users
+    newSocket.on("task:created", (newTask) => {
+      setTasks((prevTasks) => [newTask, ...prevTasks]);
+    });
+
+    // Listen for task updates
+    newSocket.on("task:updated", (updatedTask) => {
+      setTasks((prevTasks) =>
+        prevTasks.map((task) =>
+          task._id === updatedTask._id ? updatedTask : task
+        )
+      );
+    });
+
+    // Listen for task moves
+    newSocket.on("task:moved", ({ task }) => {
+      setTasks((prevTasks) =>
+        prevTasks.map((t) => (t._id === task._id ? task : t))
+      );
+    });
+
+    // Listen for task deletions
+    newSocket.on("task:deleted", (taskId) => {
+      setTasks((prevTasks) => prevTasks.filter((task) => task._id !== taskId));
+    });
+
+    // Listen for errors
+    newSocket.on("error", (errorData) => {
+      setError(errorData.message);
+      setTimeout(() => setError(null), 5000);
+    });
+
+    return () => newSocket.close();
+  }, []);
+
+  // Handle drag and drop
   const handleDragEnd = (result) => {
     if (!result.destination) return;
+
     const { source, destination, draggableId } = result;
+
+    // If dropped in same position, do nothing
     if (
       source.droppableId === destination.droppableId &&
       source.index === destination.index
-    )
+    ) {
       return;
+    }
+
+    const newStatus = destination.droppableId;
+
+    // Emit move event to server
     if (socket) {
-      socket.emit("task:move", { taskId: draggableId, newStatus: destination.droppableId });
+      socket.emit("task:move", { taskId: draggableId, newStatus });
     }
   };
 
-  const getTasksByStatus = (status) =>
-    tasks.filter((task) => task.status === status);
+  // Handle task creation
+  const handleCreateTask = (taskData) => {
+    if (socket) {
+      socket.emit("task:create", taskData);
+    }
+    setShowTaskForm(false);
+  };
 
+  // Handle task update
+  const handleUpdateTask = (taskData) => {
+    if (socket) {
+      socket.emit("task:update", taskData);
+    }
+    setEditingTask(null);
+  };
+
+  // Handle task deletion
+  const handleDeleteTask = (taskId) => {
+    if (socket && window.confirm("Are you sure you want to delete this task?")) {
+      socket.emit("task:delete", taskId);
+    }
+  };
+
+  // Handle task edit
+  const handleEditTask = (task) => {
+    setEditingTask(task);
+  };
+
+  // Get tasks by status
+  const getTasksByStatus = (status) => {
+    return tasks.filter((task) => task.status === status);
+  };
+
+  // Column configuration
   const columns = [
-    { id: "todo", title: "TO DO" },
-    { id: "inprogress", title: "IN PROGRESS" },
-    { id: "done", title: "DONE" },
+    { id: "todo", title: "To Do", color: "todo" },
+    { id: "inprogress", title: "In Progress", color: "inprogress" },
+    { id: "done", title: "Done", color: "done" },
   ];
 
   if (loading) {
     return (
       <div className="loading">
-        <div className="loading-spinner" />
+        <div className="loading-spinner"></div>
         <p>Loading tasks...</p>
       </div>
     );
@@ -46,58 +134,35 @@ function KanbanBoard({
 
   return (
     <div className="kanban-container">
-      <div className="board-header">
-        <div className="board-title-block">
-          <h1 className="board-title">Development Board</h1>
-          <p className="board-description">
-            Manage and track engineering tasks for Q3 roadmap.
-          </p>
-        </div>
-        <div className="board-actions">
-          <button
-            type="button"
-            className={`btn btn-sync ${syncing ? "syncing" : ""}`}
-            onClick={onSync}
-            disabled={syncing}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M23 4v6h-6" />
-              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-            </svg>
-            {syncing ? "Syncing..." : "Sync"}
+      {/* Header */}
+      <div className="kanban-header">
+        <h2>Task Management Board</h2>
+        <div className="kanban-controls">
+          <button className="btn btn-primary" onClick={() => setShowTaskForm(true)}>
+            + Add New Task
           </button>
-          <button type="button" className="btn btn-add-column">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            Add Column
+          <button
+            className="btn btn-secondary"
+            onClick={() => socket && socket.emit("sync:request")}
+          >
+            Refresh
           </button>
         </div>
       </div>
 
+      {/* Error Message */}
+      {error && <div className="error-message">{error}</div>}
+
+      {/* Kanban Board */}
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="kanban-board">
           {columns.map((column) => {
             const columnTasks = getTasksByStatus(column.id);
             return (
               <div key={column.id} className="kanban-column">
-                <div className="column-header">
+                <div className={`column-header ${column.color}`}>
                   <h3 className="column-title">{column.title}</h3>
-                  <span className="column-meta">
-                    <span className="task-count">{columnTasks.length}</span>
-                    <button
-                      type="button"
-                      className="column-add-btn"
-                      onClick={onNewTask}
-                      title="Add task"
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <line x1="12" y1="5" x2="12" y2="19" />
-                        <line x1="5" y1="12" x2="19" y2="12" />
-                      </svg>
-                    </button>
-                  </span>
+                  <span className="task-count">{columnTasks.length}</span>
                 </div>
 
                 <Droppable droppableId={column.id}>
@@ -105,44 +170,36 @@ function KanbanBoard({
                     <div
                       ref={provided.innerRef}
                       {...provided.droppableProps}
-                      className={`tasks-list ${snapshot.isDraggingOver ? "dragging-over" : ""}`}
+                      className="tasks-list"
                     >
-                      {columnTasks.map((task, index) => (
-                        <Draggable
-                          key={task._id}
-                          draggableId={task._id}
-                          index={index}
-                        >
-                          {(provided) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              {...provided.dragHandleProps}
-                              className="task-card-wrapper"
-                              onClick={() => onViewTask?.(task)}
-                              role="button"
-                              tabIndex={0}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter" || e.key === " ") {
-                                  e.preventDefault();
-                                  onViewTask?.(task);
-                                }
-                              }}
-                              aria-label={`View task: ${task.title}`}
-                            >
-                              <TaskCard
-                                task={task}
-                                onEdit={onEditTask}
-                                onDelete={onDeleteTask}
-                              />
-                            </div>
-                          )}
-                        </Draggable>
-                      ))}
-                      {provided.placeholder}
-                      {columnTasks.length === 0 && (
-                        <div className="empty-drop-zone" />
+                      {columnTasks.length === 0 ? (
+                        <div className="empty-state">
+                          No tasks in this column
+                        </div>
+                      ) : (
+                        columnTasks.map((task, index) => (
+                          <Draggable
+                            key={task._id}
+                            draggableId={task._id}
+                            index={index}
+                          >
+                            {(provided, snapshot) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                              >
+                                <TaskCard
+                                  task={task}
+                                  onEdit={handleEditTask}
+                                  onDelete={handleDeleteTask}
+                                />
+                              </div>
+                            )}
+                          </Draggable>
+                        ))
                       )}
+                      {provided.placeholder}
                     </div>
                   )}
                 </Droppable>
@@ -152,13 +209,20 @@ function KanbanBoard({
         </div>
       </DragDropContext>
 
-      <div className="board-footer">
-        <span className="footer-updated">UPDATED 2M AGO</span>
-        <span className="footer-tasks">{tasks.length} TOTAL TASKS</span>
-        <span className="footer-done">
-          {getTasksByStatus("done").length} DONE {getTasksByStatus("inprogress").length} IN PROGRESS
-        </span>
-      </div>
+      {/* Progress Chart */}
+      <ProgressChart tasks={tasks} />
+
+      {/* Task Form Modal */}
+      {(showTaskForm || editingTask) && (
+        <TaskForm
+          task={editingTask}
+          onSubmit={editingTask ? handleUpdateTask : handleCreateTask}
+          onCancel={() => {
+            setShowTaskForm(false);
+            setEditingTask(null);
+          }}
+        />
+      )}
     </div>
   );
 }

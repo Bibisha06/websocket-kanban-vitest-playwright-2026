@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from "react";
 import io from "socket.io-client";
+import { SignedIn, SignedOut, RedirectToSignIn, useUser } from "@clerk/clerk-react";
 import Layout from "./components/Layout";
 import KanbanBoard from "./components/KanbanBoard";
 import AnalyticsDashboard from "./components/AnalyticsDashboard";
 import TaskForm from "./components/TaskForm";
 import TaskDetailModal from "./components/TaskDetailModal";
 
-const SOCKET_URL = "http://localhost:5000";
+const SOCKET_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
-function App() {
+function AuthenticatedApp() {
   const [view, setView] = useState("board");
   const [tasks, setTasks] = useState([]);
   const [socket, setSocket] = useState(null);
@@ -18,6 +19,7 @@ function App() {
   const [editingTask, setEditingTask] = useState(null);
   const [viewingTask, setViewingTask] = useState(null);
   const [syncing, setSyncing] = useState(false);
+  const { user } = useUser();
 
   useEffect(() => {
     const newSocket = io(SOCKET_URL);
@@ -111,7 +113,7 @@ function App() {
           />
         )}
 
-        {view === "analytics" && <AnalyticsDashboard tasks={tasks} />}
+        {view === "analytics" && <AnalyticsDashboard tasks={tasks} user={user} />}
       </Layout>
 
       {viewingTask && (
@@ -133,6 +135,19 @@ function App() {
         />
       )}
     </div>
+  );
+}
+
+function App() {
+  return (
+    <>
+      <SignedOut>
+        <RedirectToSignIn />
+      </SignedOut>
+      <SignedIn>
+        <AuthenticatedApp />
+      </SignedIn>
+    </>
   );
 }
 

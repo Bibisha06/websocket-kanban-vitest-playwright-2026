@@ -1,7 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-// https://vite.dev/config/
 export default defineConfig({
   server: {
     port: 3000,
@@ -18,7 +17,7 @@ export default defineConfig({
     globals: true,
     environment: "jsdom",
     setupFiles: "./src/setupTests.js",
-    exclude: ["node_modules", "src/tests/e2e"],
+    exclude: ["node_modules", "src/tests/e2e", "tests/e2e"],
   },
   plugins: [react()],
 });

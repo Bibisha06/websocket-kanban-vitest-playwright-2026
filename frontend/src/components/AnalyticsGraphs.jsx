@@ -16,14 +16,15 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
+import { Box, SimpleGrid, Heading, Text } from "@chakra-ui/react";
 
 const CHART_COLORS = {
-  todo: "#94a3b8",
-  inprogress: "#e91e8c",
-  done: "#22c55e",
-  low: "#16a34a",
-  medium: "#ea580c",
-  high: "#dc2626",
+  todo: "#718096", // Gray-500
+  inprogress: "#d000d0", // Brand-500 (Neon Magenta)
+  done: "#48BB78", // Green-400 (Neon Green)
+  low: "#718096", // Gray
+  medium: "#805AD5", // Accent-400 (Neon Purple)
+  high: "#d000d0", // Brand-500 (Neon Magenta)
 };
 
 function toDateKey(d) {
@@ -52,9 +53,9 @@ export default function AnalyticsGraphs({ tasks }) {
   const windowDays = 30;
   const windowStart = useMemo(() => {
     const d = new Date(now);
-  d.setDate(d.getDate() - windowDays);
-  return d;
-}, [now]);
+    d.setDate(d.getDate() - windowDays);
+    return d;
+  }, [now]);
 
   const dateBuckets = useMemo(() => {
     const buckets = [];
@@ -261,223 +262,224 @@ export default function AnalyticsGraphs({ tasks }) {
   }, [tasks]);
 
   const chartProps = { margin: { top: 10, right: 10, left: 0, bottom: 0 } };
-  const cartesian = <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />;
-  const tooltipStyle = { borderRadius: 8, border: "1px solid #e2e8f0" };
+  const cartesian = <CartesianGrid strokeDasharray="3 3" stroke="#2D3748" />;
+  const tooltipStyle = { backgroundColor: "#1A202C", borderRadius: "8px", border: "1px solid #2D3748", color: "#F7FAFC" };
+
+  const GraphCard = ({ title, subtitle, children, fullWidth }) => (
+    <Box
+      bg="gray.800"
+      p={6}
+      borderRadius="xl"
+      border="1px"
+      borderColor="gray.700"
+      boxShadow="lg"
+      gridColumn={fullWidth ? "span 1 / -1" : "auto"}
+      _hover={{ borderColor: "brand.500", boxShadow: "0 0 10px rgba(255, 0, 255, 0.2)" }}
+      transition="all 0.2s"
+    >
+      <Heading size="md" mb={2} color="white">
+        {title}
+      </Heading>
+      <Text fontSize="sm" color="gray.400" mb={6}>
+        {subtitle}
+      </Text>
+      <Box h="250px" w="100%">
+        {children}
+      </Box>
+    </Box>
+  );
 
   return (
-    <section className="analytics-graphs">
-      <h2 className="graphs-section-title">Charts &amp; Workflow Insights</h2>
+    <Box mt={8}>
+      <Heading size="lg" mb={6} color="white">
+        Charts & Workflow Insights
+      </Heading>
 
-      <div className="graphs-grid">
+      <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6}>
         {/* Cumulative Flow Diagram */}
-        <div className="graph-card full-width">
-          <h3>Cumulative Flow Diagram (CFD)</h3>
-          <p className="card-subtitle">
-            Number of tasks in each workflow state over time. Detects bottlenecks and WIP buildup.
-            Data: statusHistory / createdAt / status.
-          </p>
-          <div className="chart-container tall">
-            <ResponsiveContainer width="100%" height={260}>
-              <AreaChart data={cfdData} {...chartProps}>
-                {cartesian}
-                <XAxis dataKey="date" tick={{ fontSize: 10 }} tickFormatter={(v) => v.slice(5)} />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip contentStyle={tooltipStyle} formatter={(v) => [v, ""]} labelFormatter={(l) => l} />
-                <Legend />
-                <Area type="monotone" dataKey="done" stackId="1" stroke={CHART_COLORS.done} fill={CHART_COLORS.done} fillOpacity={0.7} name="Done" />
-                <Area type="monotone" dataKey="inprogress" stackId="1" stroke={CHART_COLORS.inprogress} fill={CHART_COLORS.inprogress} fillOpacity={0.7} name="In Progress" />
-                <Area type="monotone" dataKey="todo" stackId="1" stroke={CHART_COLORS.todo} fill={CHART_COLORS.todo} fillOpacity={0.7} name="To Do" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+        <GraphCard
+          title="Cumulative Flow Diagram (CFD)"
+          subtitle="Number of tasks in each workflow state over time. Detects bottlenecks."
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={cfdData} {...chartProps}>
+              {cartesian}
+              <XAxis dataKey="date" tick={{ fontSize: 10, fill: "#A0AEC0" }} tickFormatter={(v) => v.slice(5)} stroke="#4A5568" />
+              <YAxis tick={{ fontSize: 11, fill: "#A0AEC0" }} stroke="#4A5568" />
+              <Tooltip contentStyle={tooltipStyle} formatter={(v) => [v, ""]} labelFormatter={(l) => l} />
+              <Legend wrapperStyle={{ color: "#CBD5E0" }} />
+              <Area type="monotone" dataKey="done" stackId="1" stroke={CHART_COLORS.done} fill={CHART_COLORS.done} fillOpacity={0.7} name="Done" />
+              <Area type="monotone" dataKey="inprogress" stackId="1" stroke={CHART_COLORS.inprogress} fill={CHART_COLORS.inprogress} fillOpacity={0.7} name="In Progress" />
+              <Area type="monotone" dataKey="todo" stackId="1" stroke={CHART_COLORS.todo} fill={CHART_COLORS.todo} fillOpacity={0.7} name="To Do" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </GraphCard>
 
         {/* Burndown Chart */}
-        <div className="graph-card">
-          <h3>Burndown Chart</h3>
-          <p className="card-subtitle">
-            Remaining tasks over time. Remaining = total − completed up to date. Data: completedAt.
-          </p>
-          <div className="chart-container">
-            <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={burndownData} {...chartProps}>
-                {cartesian}
-                <XAxis dataKey="date" tick={{ fontSize: 10 }} tickFormatter={(v) => v.slice(5)} />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip contentStyle={tooltipStyle} labelFormatter={(l) => l} />
-                <Legend />
-                <Line type="monotone" dataKey="remaining" stroke="#dc2626" name="Remaining" strokeWidth={2} dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+        <GraphCard
+          title="Burndown Chart"
+          subtitle="Remaining tasks over time. Tracks completion progress."
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={burndownData} {...chartProps}>
+              {cartesian}
+              <XAxis dataKey="date" tick={{ fontSize: 10, fill: "#A0AEC0" }} tickFormatter={(v) => v.slice(5)} stroke="#4A5568" />
+              <YAxis tick={{ fontSize: 11, fill: "#A0AEC0" }} stroke="#4A5568" />
+              <Tooltip contentStyle={tooltipStyle} labelFormatter={(l) => l} />
+              <Legend wrapperStyle={{ color: "#CBD5E0" }} />
+              <Line type="monotone" dataKey="remaining" stroke="#F56565" name="Remaining" strokeWidth={2} dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </GraphCard>
 
         {/* Throughput Chart */}
-        <div className="graph-card">
-          <h3>Throughput Chart</h3>
-          <p className="card-subtitle">
-            Tasks completed per day. Measures delivery capacity. Data: completedAt.
-          </p>
-          <div className="chart-container">
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={throughputData} {...chartProps}>
-                {cartesian}
-                <XAxis dataKey="date" tick={{ fontSize: 10 }} tickFormatter={(v) => v.slice(5)} />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip contentStyle={tooltipStyle} formatter={(v) => [v, "Completed"]} labelFormatter={(l) => l} />
-                <Bar dataKey="count" fill="var(--primary-magenta)" name="Completed" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+        <GraphCard
+          title="Throughput Chart"
+          subtitle="Tasks completed per day. Measures delivery rate."
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={throughputData} {...chartProps}>
+              {cartesian}
+              <XAxis dataKey="date" tick={{ fontSize: 10, fill: "#A0AEC0" }} tickFormatter={(v) => v.slice(5)} stroke="#4A5568" />
+              <YAxis tick={{ fontSize: 11, fill: "#A0AEC0" }} stroke="#4A5568" />
+              <Tooltip contentStyle={tooltipStyle} formatter={(v) => [v, "Completed"]} labelFormatter={(l) => l} />
+              <Bar dataKey="count" fill="#d000d0" name="Completed" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </GraphCard>
 
         {/* Lead Time Chart */}
-        <div className="graph-card">
-          <h3>Lead Time Chart</h3>
-          <p className="card-subtitle">
-            Time from creation to completion (days). Data: createdAt, completedAt. Avg: {avgLeadTime}d
-          </p>
-          <div className="chart-container">
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={leadTimeData} layout="vertical" margin={{ ...chartProps.margin, left: 60 }} {...chartProps}>
-                {cartesian}
-                <XAxis type="number" tick={{ fontSize: 11 }} />
-                <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 10 }} />
-                <Tooltip contentStyle={tooltipStyle} formatter={(v) => [`${v} days`, "Lead time"]} />
-                <Bar dataKey="leadTime" fill="#a855f7" name="Lead time (days)" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+        <GraphCard
+          title="Lead Time Chart"
+          subtitle={`Time from creation to completion. Avg: ${avgLeadTime}d`}
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={leadTimeData} layout="vertical" margin={{ ...chartProps.margin, left: 20 }} {...chartProps}>
+              {cartesian}
+              <XAxis type="number" tick={{ fontSize: 11, fill: "#A0AEC0" }} stroke="#4A5568" />
+              <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 10, fill: "#A0AEC0" }} stroke="#4A5568" />
+              <Tooltip contentStyle={tooltipStyle} formatter={(v) => [`${v} days`, "Lead time"]} />
+              <Bar dataKey="leadTime" fill="#805AD5" name="Lead time (days)" radius={[0, 4, 4, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </GraphCard>
 
         {/* Cycle Time Chart */}
-        <div className="graph-card">
-          <h3>Cycle Time Chart</h3>
-          <p className="card-subtitle">
-            Time from active work start to completion (days). Data: startedAt, completedAt. Avg: {avgCycleTime}d
-          </p>
-          <div className="chart-container">
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={cycleTimeData} layout="vertical" margin={{ ...chartProps.margin, left: 60 }} {...chartProps}>
-                {cartesian}
-                <XAxis type="number" tick={{ fontSize: 11 }} />
-                <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 10 }} />
-                <Tooltip contentStyle={tooltipStyle} formatter={(v) => [`${v} days`, "Cycle time"]} />
-                <Bar dataKey="cycleTime" fill="var(--primary-magenta)" name="Cycle time (days)" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+        <GraphCard
+          title="Cycle Time Chart"
+          subtitle={`Time from active start to completion. Avg: ${avgCycleTime}d`}
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={cycleTimeData} layout="vertical" margin={{ ...chartProps.margin, left: 20 }} {...chartProps}>
+              {cartesian}
+              <XAxis type="number" tick={{ fontSize: 11, fill: "#A0AEC0" }} stroke="#4A5568" />
+              <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 10, fill: "#A0AEC0" }} stroke="#4A5568" />
+              <Tooltip contentStyle={tooltipStyle} formatter={(v) => [`${v} days`, "Cycle time"]} />
+              <Bar dataKey="cycleTime" fill="#d000d0" name="Cycle time (days)" radius={[0, 4, 4, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </GraphCard>
 
         {/* WIP Chart */}
-        <div className="graph-card">
-          <h3>Work In Progress (WIP) Over Time</h3>
-          <p className="card-subtitle">
-            In-progress task count per day. Data: status / statusHistory.
-          </p>
-          <div className="chart-container">
-            <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={wipData} {...chartProps}>
-                {cartesian}
-                <XAxis dataKey="date" tick={{ fontSize: 10 }} tickFormatter={(v) => v.slice(5)} />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip contentStyle={tooltipStyle} formatter={(v) => [v, "WIP"]} labelFormatter={(l) => l} />
-                <Line type="monotone" dataKey="wip" stroke={CHART_COLORS.inprogress} name="In progress" strokeWidth={2} dot={{ r: 3 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+        <GraphCard
+          title="Work In Progress (WIP)"
+          subtitle="In-progress task count over time."
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={wipData} {...chartProps}>
+              {cartesian}
+              <XAxis dataKey="date" tick={{ fontSize: 10, fill: "#A0AEC0" }} tickFormatter={(v) => v.slice(5)} stroke="#4A5568" />
+              <YAxis tick={{ fontSize: 11, fill: "#A0AEC0" }} stroke="#4A5568" />
+              <Tooltip contentStyle={tooltipStyle} formatter={(v) => [v, "WIP"]} labelFormatter={(l) => l} />
+              <Line type="monotone" dataKey="wip" stroke={CHART_COLORS.inprogress} name="In progress" strokeWidth={2} dot={{ r: 3 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </GraphCard>
 
         {/* Aging WIP */}
-        <div className="graph-card">
-          <h3>Aging Work In Progress</h3>
-          <p className="card-subtitle">
-            How long current in-progress tasks have been open (days). Data: startedAt.
-          </p>
-          <div className="chart-container">
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={agingWipData} {...chartProps}>
-                {cartesian}
-                <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip contentStyle={tooltipStyle} formatter={(v) => [`${v} days`, "Days open"]} />
-                <Bar dataKey="daysOpen" fill="#ea580c" name="Days open" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+        <GraphCard
+          title="Aging WIP"
+          subtitle="Days open for current in-progress tasks."
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={agingWipData} {...chartProps}>
+              {cartesian}
+              <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#A0AEC0" }} stroke="#4A5568" />
+              <YAxis tick={{ fontSize: 11, fill: "#A0AEC0" }} stroke="#4A5568" />
+              <Tooltip contentStyle={tooltipStyle} formatter={(v) => [`${v} days`, "Days open"]} />
+              <Bar dataKey="daysOpen" fill="#DD6B20" name="Days open" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </GraphCard>
 
         {/* Task Distribution by Assignee */}
-        <div className="graph-card">
-          <h3>Task Distribution by Assignee</h3>
-          <p className="card-subtitle">Workload per team member. Data: assignee, status.</p>
-          <div className="chart-container">
-            <ResponsiveContainer width="100%" height={220}>
-              <PieChart>
-                <Pie
-                  data={assigneeData}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={80}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                >
-                  {assigneeData.map((_, i) => (
-                    <Cell key={i} fill={["#e91e8c", "#a855f7", "#22c55e", "#64748b"][i % 4]} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={tooltipStyle} formatter={(v) => [v, "Tasks"]} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+        <GraphCard
+          title="Distribution by Assignee"
+          subtitle="Workload per team member."
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={assigneeData}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                outerRadius={80}
+                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                labelLine={{ stroke: "#A0AEC0" }}
+              >
+                {assigneeData.map((_, i) => (
+                  <Cell key={i} fill={["#d000d0", "#805AD5", "#B794F4", "#48BB78"][i % 4]} stroke="none" />
+                ))}
+              </Pie>
+              <Tooltip contentStyle={tooltipStyle} formatter={(v) => [v, "Tasks"]} />
+            </PieChart>
+          </ResponsiveContainer>
+        </GraphCard>
 
         {/* Task Distribution by Priority */}
-        <div className="graph-card">
-          <h3>Task Distribution by Priority</h3>
-          <p className="card-subtitle">Proportion of tasks by priority. Data: priority.</p>
-          <div className="chart-container">
-            <ResponsiveContainer width="100%" height={220}>
-              <PieChart>
-                <Pie
-                  data={priorityData}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={80}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                >
-                  {priorityData.map((entry, i) => (
-                    <Cell key={i} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={tooltipStyle} formatter={(v) => [v, "Tasks"]} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+        <GraphCard
+          title="Distribution by Priority"
+          subtitle="Proportion of tasks by priority level."
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={priorityData}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                outerRadius={80}
+                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                labelLine={{ stroke: "#A0AEC0" }}
+              >
+                {priorityData.map((entry, i) => (
+                  <Cell key={i} fill={entry.color} stroke="none" />
+                ))}
+              </Pie>
+              <Tooltip contentStyle={tooltipStyle} formatter={(v) => [v, "Tasks"]} />
+            </PieChart>
+          </ResponsiveContainer>
+        </GraphCard>
 
         {/* Flow Efficiency */}
-        <div className="graph-card">
-          <h3>Flow Efficiency Chart</h3>
-          <p className="card-subtitle">
-            Active work time vs total lead time. (Cycle Time / Lead Time) × 100. Avg: {avgFlowEfficiency}
-          </p>
-          <div className="chart-container">
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={flowEfficiencyData} {...chartProps}>
-                {cartesian}
-                <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                <YAxis tick={{ fontSize: 11 }} unit="%" domain={[0, 100]} />
-                <Tooltip contentStyle={tooltipStyle} formatter={(v) => [`${v}%`, "Efficiency"]} />
-                <Bar dataKey="efficiency" fill="#0ea5e9" name="Efficiency %" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
-    </section>
+        <GraphCard
+          title="Flow Efficiency"
+          subtitle={`Active vs Lead Time. Avg: ${avgFlowEfficiency}`}
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={flowEfficiencyData} {...chartProps}>
+              {cartesian}
+              <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#A0AEC0" }} stroke="#4A5568" />
+              <YAxis tick={{ fontSize: 11, fill: "#A0AEC0" }} unit="%" domain={[0, 100]} stroke="#4A5568" />
+              <Tooltip contentStyle={tooltipStyle} formatter={(v) => [`${v}%`, "Efficiency"]} />
+              <Bar dataKey="efficiency" fill="#3182CE" name="Efficiency %" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </GraphCard>
+      </SimpleGrid>
+    </Box>
   );
 }

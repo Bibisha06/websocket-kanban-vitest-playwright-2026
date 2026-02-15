@@ -10,24 +10,32 @@ app.use(express.json());
 
 const server = http.createServer(app);
 
+const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',')
+  : ['http://localhost:3000'];
+
 const io = new Server(server, {
-  cors: { origin: "*" },
+  cors: {
+    origin: (origin, callback) => {
+      if (!origin || ALLOWED_ORIGINS.includes(origin) || ALLOWED_ORIGINS.includes('*')) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,
+    methods: ['GET', 'POST']
+  },
 });
 
-// ---------------------
-// MongoDB Connection
-// ---------------------
 const MONGODB_URI =
   process.env.MONGODB_URI || "mongodb://localhost:27017/kanban";
 
 mongoose
   .connect(MONGODB_URI)
   .then(() => console.log("Connected to MongoDB"))
-  .catch((err) => console.error(" MongoDB connection error:", err));
+  .catch((err) => console.error("❌ MongoDB connection error:", err));
 
-// ---------------------
-// Allowed Update Fields
-// ---------------------
 const ALLOWED_FIELDS = [
   "title",
   "description",
@@ -38,15 +46,9 @@ const ALLOWED_FIELDS = [
   "assignee",
 ];
 
-// ---------------------
-// Socket Logic
-// ---------------------
 io.on("connection", async (socket) => {
   console.log(`🔌 User connected: ${socket.id}`);
 
-  // ---------------------
-  // INITIAL SYNC ON CONNECT
-  // ---------------------
   try {
     const tasks = await Task.find().sort({ createdAt: -1 });
     socket.emit("sync:tasks", tasks);
@@ -55,9 +57,6 @@ io.on("connection", async (socket) => {
     socket.emit("error", { message: "Failed to fetch tasks" });
   }
 
-  // ---------------------
-  // CREATE TASK
-  // ---------------------
   socket.on("task:create", async (taskData, callback) => {
     try {
       const status = taskData.status || "todo";
@@ -72,9 +71,7 @@ io.on("connection", async (socket) => {
         statusHistory: [{ status, changedAt: new Date() }],
       });
 
-      // Broadcast to ALL clients (frontend listens for task:created)
       io.emit("task:created", newTask);
-
       callback?.({ status: "ok", task: newTask });
     } catch (error) {
       console.error("Error creating task:", error);
@@ -83,9 +80,6 @@ io.on("connection", async (socket) => {
     }
   });
 
-  // ---------------------
-  // UPDATE TASK
-  // ---------------------
   socket.on("task:update", async (taskData, callback) => {
     try {
       const taskId = taskData._id || taskData.id;
@@ -129,7 +123,6 @@ io.on("connection", async (socket) => {
       }
 
       io.emit("task:updated", updatedTask);
-
       callback?.({ status: "ok", task: updatedTask });
     } catch (error) {
       console.error("Error updating task:", error);
@@ -138,9 +131,6 @@ io.on("connection", async (socket) => {
     }
   });
 
-  // ---------------------
-  // MOVE TASK
-  // ---------------------
   socket.on("task:move", async ({ taskId, newStatus }, callback) => {
     try {
       if (!taskId || !newStatus) {
@@ -171,9 +161,7 @@ io.on("connection", async (socket) => {
         });
       }
 
-      // Frontend expects task:moved with { task }
       io.emit("task:moved", { task: updatedTask });
-
       callback?.({ status: "ok", task: updatedTask });
     } catch (error) {
       console.error("Error moving task:", error);
@@ -182,9 +170,6 @@ io.on("connection", async (socket) => {
     }
   });
 
-  // ---------------------
-  // DELETE TASK
-  // ---------------------
   socket.on("task:delete", async (taskId, callback) => {
     try {
       if (!taskId) {
@@ -204,7 +189,6 @@ io.on("connection", async (socket) => {
       }
 
       io.emit("task:deleted", taskId);
-
       callback?.({ status: "ok", taskId });
     } catch (error) {
       console.error("Error deleting task:", error);
@@ -213,9 +197,6 @@ io.on("connection", async (socket) => {
     }
   });
 
-  // ---------------------
-  // MANUAL SYNC REQUEST (frontend emits sync:request)
-  // ---------------------
   const handleSync = async (callback) => {
     try {
       const tasks = await Task.find().sort({ createdAt: -1 });
@@ -230,19 +211,13 @@ io.on("connection", async (socket) => {
   socket.on("sync:request", handleSync);
   socket.on("sync:tasks", handleSync);
 
-  // ---------------------
-  // DISCONNECT
-  // ---------------------
   socket.on("disconnect", () => {
-    console.log(` User disconnected: ${socket.id}`);
+    console.log(`❌ User disconnected: ${socket.id}`);
   });
 });
 
-// ---------------------
-// Start Server
-// ---------------------
 const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, () =>
-  console.log(` Server running on http://localhost:${PORT}`)
+  console.log(`🚀 Server running on http://localhost:${PORT}`)
 );

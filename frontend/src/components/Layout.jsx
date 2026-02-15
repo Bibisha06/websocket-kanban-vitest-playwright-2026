@@ -1,125 +1,116 @@
 import React from "react";
-
-const IconBoard = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="3" y="3" width="7" height="7" rx="1" />
-    <rect x="14" y="3" width="7" height="7" rx="1" />
-    <rect x="3" y="14" width="7" height="7" rx="1" />
-    <rect x="14" y="14" width="7" height="7" rx="1" />
-  </svg>
-);
-
-const IconChart = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="18" y1="20" x2="18" y2="10" />
-    <line x1="12" y1="20" x2="12" y2="4" />
-    <line x1="6" y1="20" x2="6" y2="14" />
-  </svg>
-);
-
-const IconPlus = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="12" y1="5" x2="12" y2="19" />
-    <line x1="5" y1="12" x2="19" y2="12" />
-  </svg>
-);
-
-const IconSettings = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="3" />
-    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-  </svg>
-);
-
-const IconLogout = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-    <polyline points="16 17 21 12 16 7" />
-    <line x1="21" y1="12" x2="9" y2="12" />
-  </svg>
-);
-
-const IconLogo = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-  </svg>
-);
+import { UserButton } from "@clerk/clerk-react";
+import { Box, Flex, VStack, Button, Text, Icon, Spacer } from "@chakra-ui/react";
+import { RiLayoutGridFill, RiBarChart2Fill, RiAddLine, RiKanbanView2 } from "react-icons/ri";
 
 function Layout({ currentView, onNavigate, onNewTask, children }) {
   return (
-    <div className="app-layout">
-      <aside className="sidebar">
-        <nav className="sidebar-nav">
-          <button
-            className={`nav-item ${currentView === "board" ? "active" : ""}`}
-            onClick={() => onNavigate("board")}
-          >
-            <IconBoard />
-            <span>Kanban Board</span>
-          </button>
-          <button
-            className={`nav-item ${currentView === "analytics" ? "active" : ""}`}
-            onClick={() => onNavigate("analytics")}
-          >
-            <IconChart />
-            <span>Analytics</span>
-          </button>
-        </nav>
-        <button className="sidebar-new-task" onClick={onNewTask}>
-          <IconPlus />
-          <span>New Task</span>
-        </button>
-        <div className="sidebar-footer">
-          <button className="nav-item">
-            <IconSettings />
-            <span>Settings</span>
-          </button>
-          <button className="nav-item logout">
-            <IconLogout />
-            <span>Logout</span>
-          </button>
-        </div>
-        <div className="sidebar-copyright">
-          <div>© 2024 Kanban Flow Inc.</div>
-          <div className="sync-status">
-            <span className="sync-dot" />
-            Connected to Real-time Sync
-          </div>
-        </div>
-      </aside>
+    <Flex h="100vh" overflow="hidden" bg="gray.900">
+      {/* Sidebar */}
+      <Box
+        w="250px"
+        bg="gray.800"
+        borderRight="1px"
+        borderColor="gray.700"
+        display={{ base: "none", md: "block" }}
+        flexShrink={0}
+      >
+        <Flex direction="column" h="full">
+          {/* Logo */}
+          <Flex align="center" p={6} borderBottom="1px" borderColor="gray.700">
+            <Icon as={RiKanbanView2} boxSize={8} color="brand.500" mr={3} sx={{ filter: "drop-shadow(0 0 8px rgba(255, 0, 255, 0.6))" }} />
+            <Text fontSize="xl" fontWeight="bold" color="white">
+              Kanban Flow
+            </Text>
+          </Flex>
 
-      <div className="main-wrapper">
-        <header className="top-header">
-          <div className="header-left">
-            <div className="logo">
-              <IconLogo />
-              <span>Kanban Flow</span>
-            </div>
-            <div className="search-box">
-              <span className="search-icon">⌕</span>
-              <input type="search" placeholder="Search tasks..." aria-label="Search tasks" />
-            </div>
-          </div>
-          <div className="header-right">
-            <button className="icon-btn" title="Notifications">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-              </svg>
-              <span className="notification-badge" />
-            </button>
-            <div className="user-avatar" title="User">
-              <span>U</span>
-              <span className="avatar-online" />
-            </div>
-          </div>
-        </header>
+          {/* Navigation */}
+          <VStack spacing={2} align="stretch" p={4} flex={1}>
+            <Button
+              variant={currentView === "board" ? "solid" : "ghost"}
+              colorScheme="brand"
+              justifyContent="flex-start"
+              leftIcon={<Icon as={RiLayoutGridFill} />}
+              onClick={() => onNavigate("board")}
+              size="lg"
+              _hover={{ bg: "brand.900" }}
+            >
+              Kanban Board
+            </Button>
+            <Button
+              variant={currentView === "analytics" ? "solid" : "ghost"}
+              colorScheme="brand"
+              justifyContent="flex-start"
+              leftIcon={<Icon as={RiBarChart2Fill} />}
+              onClick={() => onNavigate("analytics")}
+              size="lg"
+              _hover={{ bg: "brand.900" }}
+            >
+              Analytics
+            </Button>
 
-        <main className="main-content">
+            <Box pt={4}>
+              <Button
+                w="full"
+                colorScheme="brand"
+                variant="outline"
+                justifyContent="flex-start"
+                leftIcon={<Icon as={RiAddLine} />}
+                onClick={onNewTask}
+                size="md"
+                _hover={{ bg: "brand.900", boxShadow: "0 0 10px rgba(255, 0, 255, 0.4)" }}
+              >
+                New Task
+              </Button>
+            </Box>
+          </VStack>
+
+          {/* Footer */}
+          <Box p={6} borderTop="1px" borderColor="gray.700">
+            <Text fontSize="xs" color="gray.400" mb={2}>
+              © 2024 Kanban Flow Inc.
+            </Text>
+            <Flex align="center">
+              <Box w={2} h={2} borderRadius="full" bg="green.400" mr={2} boxShadow="0 0 5px #48BB78" />
+              <Text fontSize="xs" color="gray.400">
+                Connected to Real-time Sync
+              </Text>
+            </Flex>
+          </Box>
+        </Flex>
+      </Box>
+
+      {/* Main Content */}
+      <Flex direction="column" flex={1} overflow="hidden">
+        {/* Header */}
+        <Flex
+          as="header"
+          h="16"
+          align="center"
+          justify="space-between"
+          px={8}
+          bg="gray.800"
+          borderBottom="1px"
+          borderColor="gray.700"
+        >
+          {/* Mobile Logo View (if needed later) */}
+          <Box display={{ base: "block", md: "none" }}>
+            <Icon as={RiKanbanView2} boxSize={8} color="brand.500" />
+          </Box>
+
+          <Spacer />
+
+          <Box>
+            <UserButton />
+          </Box>
+        </Flex>
+
+        {/* Content Area */}
+        <Box flex={1} overflowY="auto" p={8}>
           {children}
-        </main>
-      </div>
-    </div>
+        </Box>
+      </Flex>
+    </Flex>
   );
 }
 

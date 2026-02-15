@@ -23,7 +23,7 @@ const taskSchema = new mongoose.Schema(
     },
     category: {
       type: String,
-      enum: ["bug", "feature", "enhancement"],
+      enum: ["bug", "feature", "enhancement", "design", "refactor", "documentation", "testing"],
       default: "feature",
     },
     assignee: { type: String, default: null },
@@ -44,7 +44,7 @@ const taskSchema = new mongoose.Schema(
     ],
   },
   {
-    timestamps: true, // createdAt, updatedAt
+    timestamps: true,
   }
 );
 

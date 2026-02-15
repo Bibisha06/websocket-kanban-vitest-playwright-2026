@@ -1,21 +1,27 @@
-import React, { useState, useEffect } from "react";
-
-const IconBoard = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <rect x="3" y="3" width="7" height="7" rx="1" />
-    <rect x="14" y="3" width="7" height="7" rx="1" />
-    <rect x="3" y="14" width="7" height="7" rx="1" />
-    <rect x="14" y="14" width="7" height="7" rx="1" />
-  </svg>
-);
-
-const IconUpload = () => (
-  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-    <polyline points="17 8 12 3 7 8" />
-    <line x1="12" y1="3" x2="12" y2="15" />
-  </svg>
-);
+import React, { useState, useEffect, useRef } from "react";
+import {
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalFooter,
+  ModalBody,
+  ModalCloseButton,
+  Button,
+  FormControl,
+  FormLabel,
+  Input,
+  Select,
+  Textarea,
+  VStack,
+  HStack,
+  Text,
+  Box,
+  Icon,
+  useToast,
+  FormErrorMessage,
+} from "@chakra-ui/react";
+import { RiUploadCloud2Line, RiFileLine, RiCloseLine } from "react-icons/ri";
 
 function formatFileSize(bytes) {
   if (!bytes) return "—";
@@ -36,7 +42,9 @@ function TaskForm({ task, onSubmit, onCancel }) {
 
   const [previewFiles, setPreviewFiles] = useState([]);
   const [dragOver, setDragOver] = useState(false);
-  const fileInputRef = React.useRef(null);
+  const fileInputRef = useRef(null);
+  const toast = useToast();
+  const [errors, setErrors] = useState({});
 
   useEffect(() => {
     if (task) {
@@ -56,12 +64,25 @@ function TaskForm({ task, onSubmit, onCancel }) {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: null }));
+    }
   };
 
   const processFiles = (files) => {
     const list = Array.from(files || []);
+
     list.forEach((file) => {
-      if (file.size > 10 * 1024 * 1024) return; // 10MB
+      if (file.size > 10 * 1024 * 1024) {
+        toast({
+          title: "File too large",
+          description: `${file.name} exceeds 10MB limit.`,
+          status: "error",
+          duration: 3000,
+        });
+        return;
+      }
+
       const reader = new FileReader();
       reader.onload = (event) => {
         const newAttachment = {
@@ -70,12 +91,23 @@ function TaskForm({ task, onSubmit, onCancel }) {
           fileType: file.type,
           fileSize: file.size,
         };
+
         setPreviewFiles((prev) => [...prev, newAttachment]);
         setFormData((prev) => ({
           ...prev,
           attachments: [...(prev.attachments || []), newAttachment],
         }));
       };
+
+      reader.onerror = (error) => {
+        toast({
+          title: "File read error",
+          description: `Failed to read ${file.name}`,
+          status: "error",
+          duration: 3000,
+        });
+      };
+
       reader.readAsDataURL(file);
     });
   };
@@ -109,184 +141,217 @@ function TaskForm({ task, onSubmit, onCancel }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!formData.title.trim()) {
-      alert("Please enter a task title");
+      setErrors({ title: "Title is required" });
       return;
     }
+
     onSubmit(formData);
   };
 
   const isEdit = Boolean(task);
 
   return (
-    <div className="modal-overlay" onClick={onCancel}>
-      <div className="modal modal-task-form" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2 className="modal-title">
-            <span className="modal-title-icon">
-              <IconBoard />
-            </span>
-            {isEdit ? "Edit Task" : "New Task Form"}
-          </h2>
-          <button type="button" className="close-btn" onClick={onCancel} aria-label="Close">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-        </div>
-
-        <form className="task-form" onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="title">TASK TITLE {!isEdit && "*"}</label>
-            <input
-              type="text"
-              id="title"
-              name="title"
-              value={formData.title}
-              onChange={handleChange}
-              placeholder="e.g., Redesign landing page hero section"
-              required
-              className="input-underline"
-            />
-          </div>
-
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="priority">PRIORITY</label>
-              <select
-                id="priority"
-                name="priority"
-                value={formData.priority}
+    <Modal isOpen={true} onClose={onCancel} size="xl" scrollBehavior="inside">
+      <ModalOverlay backdropFilter="blur(4px)" />
+      <ModalContent borderRadius="xl" bg="gray.800" border="1px" borderColor="gray.700" boxShadow="0 0 20px rgba(0,0,0,0.5)">
+        <ModalHeader borderBottom="1px" borderColor="gray.700" color="white">
+          {isEdit ? "Edit Task" : "Create New Task"}
+        </ModalHeader>
+        <ModalCloseButton color="gray.400" _hover={{ color: "white", bg: "whiteAlpha.200" }} />
+        <ModalBody py={6}>
+          <VStack spacing={5} as="form" id="task-form" onSubmit={handleSubmit}>
+            <FormControl isInvalid={errors.title} isRequired>
+              <FormLabel color="gray.300">Task Title</FormLabel>
+              <Input
+                name="title"
+                value={formData.title}
                 onChange={handleChange}
-                className="select-input"
-              >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-              </select>
-            </div>
-            <div className="form-group">
-              <label htmlFor="category">CATEGORY</label>
-              <select
-                id="category"
-                name="category"
-                value={formData.category}
-                onChange={handleChange}
-                className="select-input"
-              >
-                <option value="bug">Bug</option>
-                <option value="feature">Feature</option>
-                <option value="enhancement">Enhancement</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="description">DESCRIPTION</label>
-            <textarea
-              id="description"
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              placeholder="Add more details about this task..."
-              className="textarea-input"
-              rows={4}
-            />
-          </div>
-
-          {isEdit && (
-            <div className="form-group">
-              <label htmlFor="status">STATUS</label>
-              <select
-                id="status"
-                name="status"
-                value={formData.status}
-                onChange={handleChange}
-                className="select-input"
-              >
-                <option value="todo">To Do</option>
-                <option value="inprogress">In Progress</option>
-                <option value="done">Done</option>
-              </select>
-            </div>
-          )}
-
-          <div className="form-group">
-            <div className="attachments-label-row">
-              <label>ATTACHMENTS</label>
-              {previewFiles.length > 0 && (
-                <span className="attachments-count">{previewFiles.length} files attached</span>
-              )}
-            </div>
-            <div
-              className={`file-upload-zone ${dragOver ? "drag-over" : ""}`}
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept=".pdf,.png,.jpg,.jpeg,.docx"
-                onChange={handleFileChange}
-                className="file-input-hidden"
+                placeholder="e.g., Redesign landing page"
+                variant="filled"
+                bg="gray.700"
+                borderColor="gray.600"
+                color="white"
+                _hover={{ bg: "gray.600" }}
+                _focus={{ bg: "gray.700", borderColor: "brand.500", boxShadow: "0 0 0 1px #d000d0" }}
+                _placeholder={{ color: "gray.500" }}
               />
-              <IconUpload />
-              <p className="upload-text">Click or drag files to upload</p>
-              <p className="upload-hint">PDF, PNG, JPG, DOCX up to 10MB</p>
-            </div>
+              <FormErrorMessage>{errors.title}</FormErrorMessage>
+            </FormControl>
 
-            {previewFiles.length > 0 && (
-              <div className="attached-files-list">
-                {previewFiles.map((file, index) => (
-                  <div key={index} className="attached-file-item">
-                    <span className="file-icon">📄</span>
-                    <div className="file-info">
-                      <span className="file-name">{file.fileName}</span>
-                      <span className="file-size">
-                        {formatFileSize(file.fileSize)}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      className="remove-file-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRemoveFile(index);
-                      }}
-                      aria-label="Remove file"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
+            <HStack w="full" spacing={4}>
+              <FormControl>
+                <FormLabel color="gray.300">Priority</FormLabel>
+                <Select
+                  name="priority"
+                  value={formData.priority}
+                  onChange={handleChange}
+                  variant="filled"
+                  bg="gray.700"
+                  borderColor="gray.600"
+                  color="white"
+                  _hover={{ bg: "gray.600" }}
+                  _focus={{ bg: "gray.700", borderColor: "brand.500" }}
+                  sx={{ option: { bg: "gray.800" } }}
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                </Select>
+              </FormControl>
+              <FormControl>
+                <FormLabel color="gray.300">Category</FormLabel>
+                <Select
+                  name="category"
+                  value={formData.category}
+                  onChange={handleChange}
+                  variant="filled"
+                  bg="gray.700"
+                  borderColor="gray.600"
+                  color="white"
+                  _hover={{ bg: "gray.600" }}
+                  _focus={{ bg: "brand.500", borderColor: "brand.500" }}
+                  sx={{ option: { bg: "gray.800" } }}
+                >
+                  <option value="bug">Bug</option>
+                  <option value="feature">Feature</option>
+                  <option value="enhancement">Enhancement</option>
+                  <option value="design">Design</option>
+                  <option value="refactor">Refactor</option>
+                  <option value="documentation">Documentation</option>
+                  <option value="testing">Testing</option>
+                </Select>
+              </FormControl>
+            </HStack>
+
+            <FormControl>
+              <FormLabel color="gray.300">Description</FormLabel>
+              <Textarea
+                name="description"
+                value={formData.description}
+                onChange={handleChange}
+                placeholder="Add more details about this task..."
+                variant="filled"
+                bg="gray.700"
+                borderColor="gray.600"
+                color="white"
+                _hover={{ bg: "gray.600" }}
+                _focus={{ bg: "gray.700", borderColor: "brand.500", boxShadow: "0 0 0 1px #d000d0" }}
+                _placeholder={{ color: "gray.500" }}
+                minH="120px"
+              />
+            </FormControl>
 
             {isEdit && (
-              <p className="last-edited">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="10" />
-                  <polyline points="12 6 12 12 16 14" />
-                </svg>
-                Last edited 2 hours ago
-              </p>
+              <FormControl>
+                <FormLabel color="gray.300">Status</FormLabel>
+                <Select
+                  name="status"
+                  value={formData.status}
+                  onChange={handleChange}
+                  variant="filled"
+                  bg="gray.700"
+                  borderColor="gray.600"
+                  color="white"
+                  _hover={{ bg: "gray.600" }}
+                  _focus={{ bg: "gray.700", borderColor: "brand.500" }}
+                  sx={{ option: { bg: "gray.800" } }}
+                >
+                  <option value="todo">To Do</option>
+                  <option value="inprogress">In Progress</option>
+                  <option value="done">Done</option>
+                </Select>
+              </FormControl>
             )}
-          </div>
 
-          <div className="form-actions">
-            <button type="button" className="btn btn-secondary" onClick={onCancel}>
-              Cancel
-            </button>
-            <button type="submit" className="btn btn-primary">
-              {isEdit ? "Save Changes" : "Create Task"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+            <FormControl>
+              <FormLabel color="gray.300">Attachments</FormLabel>
+              <Box
+                border="2px dashed"
+                borderColor={dragOver ? "brand.500" : "gray.600"}
+                bg={dragOver ? "whiteAlpha.100" : "gray.700"}
+                borderRadius="md"
+                p={6}
+                textAlign="center"
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onClick={() => fileInputRef.current?.click()}
+                cursor="pointer"
+                transition="all 0.2s"
+                _hover={{ borderColor: "brand.400", bg: "gray.600" }}
+              >
+                <Input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept=".pdf,.png,.jpg,.jpeg,.docx"
+                  onChange={handleFileChange}
+                  display="none"
+                />
+                <VStack spacing={2}>
+                  <Icon as={RiUploadCloud2Line} boxSize={8} color={dragOver ? "brand.400" : "gray.400"} />
+                  <Text color="gray.300" fontSize="sm">
+                    Click or drag files to upload
+                  </Text>
+                  <Text color="gray.500" fontSize="xs">
+                    PDF, PNG, JPG up to 10MB
+                  </Text>
+                </VStack>
+              </Box>
+
+              {previewFiles.length > 0 && (
+                <VStack mt={4} align="stretch" spacing={2}>
+                  {previewFiles.map((file, index) => (
+                    <HStack
+                      key={index}
+                      bg="gray.700"
+                      p={2}
+                      borderRadius="md"
+                      justify="space-between"
+                      border="1px"
+                      borderColor="gray.600"
+                    >
+                      <HStack>
+                        <Icon as={RiFileLine} color="gray.400" />
+                        <Box>
+                          <Text fontSize="sm" noOfLines={1} maxW="200px" color="gray.200">
+                            {file.fileName}
+                          </Text>
+                          <Text fontSize="xs" color="gray.500">
+                            {formatFileSize(file.fileSize)}
+                          </Text>
+                        </Box>
+                      </HStack>
+                      <Button
+                        size="xs"
+                        variant="ghost"
+                        colorScheme="red"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveFile(index);
+                        }}
+                        _hover={{ bg: "red.900", color: "red.300" }}
+                      >
+                        <Icon as={RiCloseLine} />
+                      </Button>
+                    </HStack>
+                  ))}
+                </VStack>
+              )}
+            </FormControl>
+          </VStack>
+        </ModalBody>
+
+        <ModalFooter borderTop="1px" borderColor="gray.700" bg="gray.800" borderBottomRadius="xl">
+          <Button variant="ghost" mr={3} onClick={onCancel} color="gray.400" _hover={{ bg: "whiteAlpha.100", color: "white" }}>
+            Cancel
+          </Button>
+          <Button colorScheme="brand" form="task-form" type="submit" _hover={{ bg: "brand.400", boxShadow: "0 0 10px #ff00ff" }}>
+            {isEdit ? "Save Changes" : "Create Task"}
+          </Button>
+        </ModalFooter>
+      </ModalContent>
+    </Modal>
   );
 }
 
