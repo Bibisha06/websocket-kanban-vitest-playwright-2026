@@ -15,7 +15,7 @@ import {
 } from "@chakra-ui/react";
 import { BsThreeDotsVertical, BsPaperclip, BsChatSquareDots } from "react-icons/bs";
 
-function TaskCard({ task, onEdit, onDelete }) {
+function TaskCard({ task, onEdit, onDelete, onClick }) {
   const attachmentCount = task.attachments?.length ?? 0;
 
   const priorityColors = {
@@ -42,6 +42,8 @@ function TaskCard({ task, onEdit, onDelete }) {
       boxShadow="sm"
       border="1px"
       borderColor="gray.700"
+      cursor="pointer"
+      onClick={onClick}
       _hover={{
         boxShadow: "0 0 15px rgba(255, 0, 255, 0.3)",
         borderColor: "brand.500",

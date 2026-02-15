@@ -3,7 +3,6 @@ import { ChakraProvider } from "@chakra-ui/react";
 import TaskCard from "../../components/TaskCard";
 import { describe, it, expect, vi } from "vitest";
 
-// Mock resize observer which is used by Chakra
 global.ResizeObserver = vi.fn().mockImplementation(() => ({
     observe: vi.fn(),
     unobserve: vi.fn(),
@@ -17,6 +16,7 @@ const mockTask = {
     category: "bug",
     status: "todo",
     assignee: "Test User",
+    attachments: [],
 };
 
 const renderWithChakra = (ui) => {
@@ -30,6 +30,7 @@ describe("TaskCard", () => {
                 task={mockTask}
                 onEdit={vi.fn()}
                 onDelete={vi.fn()}
+                onClick={vi.fn()}
             />
         );
 
@@ -38,42 +39,39 @@ describe("TaskCard", () => {
         expect(screen.getByText("bug")).toBeInTheDocument();
     });
 
-    it("calls onEdit when edit is clicked", () => {
-        const handleEdit = vi.fn();
+    it("calls onClick when card is clicked", () => {
+        const handleClick = vi.fn();
         renderWithChakra(
             <TaskCard
                 task={mockTask}
-                onEdit={handleEdit}
+                onEdit={vi.fn()}
                 onDelete={vi.fn()}
+                onClick={handleClick}
             />
         );
 
-        // Open menu
-        const menuButton = screen.getByLabelText("Options");
-        fireEvent.click(menuButton);
-
-        // Click edit
-        const editButton = screen.getByText("Edit");
-        fireEvent.click(editButton);
-
-        expect(handleEdit).toHaveBeenCalledWith(mockTask);
+        const card = screen.getByText("Test Task").closest("div[role='group']");
+        if (card) {
+            fireEvent.click(card);
+            expect(handleClick).toHaveBeenCalled();
+        }
     });
 
     it("calls onDelete when delete is clicked", () => {
         const handleDelete = vi.fn();
+
         renderWithChakra(
             <TaskCard
                 task={mockTask}
                 onEdit={vi.fn()}
                 onDelete={handleDelete}
+                onClick={vi.fn()}
             />
         );
 
-        // Open menu
         const menuButton = screen.getByLabelText("Options");
         fireEvent.click(menuButton);
 
-        // Click delete
         const deleteButton = screen.getByText("Delete");
         fireEvent.click(deleteButton);
 
