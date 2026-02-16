@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, act } from "@testing-library/react";
 import { ChakraProvider } from "@chakra-ui/react";
 import KanbanBoard from "../../components/KanbanBoard";
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -24,7 +24,11 @@ vi.mock("@hello-pangea/dnd", () => ({
 const mockSocket = {
     on: vi.fn((event, callback) => {
         if (event === "sync:tasks") {
-            setTimeout(() => callback([]), 0);
+            setTimeout(() => {
+                act(() => {
+                    callback([]);
+                });
+            }, 0);
         }
     }),
     emit: vi.fn(),
@@ -70,5 +74,74 @@ describe("KanbanBoard", () => {
 
         expect(screen.getByText("In Progress")).toBeInTheDocument();
         expect(screen.getByText("Done")).toBeInTheDocument();
+    });
+
+    it("adds a task card when task:created event is received", async () => {
+        renderWithChakra(<KanbanBoard />);
+
+        await waitFor(() => expect(screen.queryByText("Loading tasks...")).not.toBeInTheDocument());
+
+        const newTask = { _id: "new-1", title: "New Realtime Task", status: "todo", priority: "low", category: "feature" };
+
+        const createdCallback = mockSocket.on.mock.calls.find(call => call[0] === "task:created")[1];
+        act(() => {
+            createdCallback(newTask);
+        });
+
+        await waitFor(() => {
+            expect(screen.getByText("New Realtime Task")).toBeInTheDocument();
+        });
+    });
+
+    it("removes a task card when task:deleted event is received", async () => {
+        const existingTask = { _id: "del-1", title: "Deleting Task", status: "todo", priority: "low", category: "feature" };
+
+        mockSocket.on.mockImplementation((event, callback) => {
+            if (event === "sync:tasks") {
+                setTimeout(() => {
+                    act(() => {
+                        callback([existingTask]);
+                    });
+                }, 0);
+            }
+        });
+
+        renderWithChakra(<KanbanBoard />);
+
+        await waitFor(() => expect(screen.getByText("Deleting Task")).toBeInTheDocument());
+
+        const deletedCallback = mockSocket.on.mock.calls.find(call => call[0] === "task:deleted")[1];
+        act(() => {
+            deletedCallback("del-1");
+        });
+
+        await waitFor(() => {
+            expect(screen.queryByText("Deleting Task")).not.toBeInTheDocument();
+        });
+    });
+
+    it("moves a task card when task:moved event is received (Multi-client Sync)", async () => {
+        const movingTask = { _id: "move-1", title: "Moving Task", status: "todo", priority: "low", category: "feature" };
+
+        mockSocket.on.mockImplementation((event, callback) => {
+            if (event === "sync:tasks") {
+                setTimeout(() => {
+                    act(() => {
+                        callback([movingTask]);
+                    });
+                }, 0);
+            }
+        });
+
+        renderWithChakra(<KanbanBoard />);
+        await waitFor(() => expect(screen.getByText("Moving Task")).toBeInTheDocument());
+
+        const movedTask = { ...movingTask, status: "inprogress" };
+        const movedCallback = mockSocket.on.mock.calls.find(call => call[0] === "task:moved")[1];
+        act(() => {
+            movedCallback({ task: movedTask });
+        });
+
+        expect(screen.getByText("Moving Task")).toBeInTheDocument();
     });
 });

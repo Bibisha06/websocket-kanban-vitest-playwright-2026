@@ -83,6 +83,17 @@ function TaskForm({ task, onSubmit, onCancel }) {
         return;
       }
 
+      const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf"];
+      if (!allowedTypes.includes(file.type)) {
+        toast({
+          title: "Invalid file type",
+          description: `${file.name} is not supported. Use Images or PDFs.`,
+          status: "error",
+          duration: 3000,
+        });
+        return;
+      }
+
       const reader = new FileReader();
       reader.onload = (event) => {
         const newAttachment = {

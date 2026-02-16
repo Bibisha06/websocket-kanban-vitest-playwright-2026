@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { memo } from "react";
 import {
   Box,
   Heading,
@@ -11,11 +11,10 @@ import {
   MenuList,
   MenuItem,
   IconButton,
-  Avatar,
 } from "@chakra-ui/react";
-import { BsThreeDotsVertical, BsPaperclip, BsChatSquareDots } from "react-icons/bs";
+import { BsThreeDotsVertical, BsPaperclip } from "react-icons/bs";
 
-function TaskCard({ task, onEdit, onDelete, onClick }) {
+const TaskCard = memo(({ task, onEdit, onDelete, onClick }) => {
   const attachmentCount = task.attachments?.length ?? 0;
 
   const priorityColors = {
@@ -77,7 +76,7 @@ function TaskCard({ task, onEdit, onDelete, onClick }) {
 
       <Flex gap={2} mb={4} wrap="wrap">
         <Badge colorScheme={priorityColors[task.priority] || "gray"} variant="solid" borderRadius="full" px={2}>
-          {task.priority}
+          {task.priority || 'low'}
         </Badge>
         <Badge
           variant="outline"
@@ -85,7 +84,7 @@ function TaskCard({ task, onEdit, onDelete, onClick }) {
           borderRadius="full"
           px={2}
         >
-          {task.category}
+          {task.category || 'feature'}
         </Badge>
       </Flex>
 
@@ -99,6 +98,6 @@ function TaskCard({ task, onEdit, onDelete, onClick }) {
       )}
     </Box>
   );
-}
+});
 
 export default TaskCard;

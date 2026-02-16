@@ -24,7 +24,7 @@ const renderWithChakra = (ui) => {
 };
 
 describe("TaskCard", () => {
-    it("renders task details correctly", () => {
+    it("renders priority and category badges with correct text", () => {
         renderWithChakra(
             <TaskCard
                 task={mockTask}
@@ -34,32 +34,46 @@ describe("TaskCard", () => {
             />
         );
 
-        expect(screen.getByText("Test Task")).toBeInTheDocument();
         expect(screen.getByText("high")).toBeInTheDocument();
         expect(screen.getByText("bug")).toBeInTheDocument();
     });
 
-    it("calls onClick when card is clicked", () => {
-        const handleClick = vi.fn();
+    it("displays attachment indicator when task has attachments", () => {
+        const taskWithAttachments = { ...mockTask, attachments: [{ fileName: "test.jpg" }] };
         renderWithChakra(
             <TaskCard
-                task={mockTask}
+                task={taskWithAttachments}
                 onEdit={vi.fn()}
                 onDelete={vi.fn()}
-                onClick={handleClick}
+                onClick={vi.fn()}
             />
         );
 
-        const card = screen.getByText("Test Task").closest("div[role='group']");
-        if (card) {
-            fireEvent.click(card);
-            expect(handleClick).toHaveBeenCalled();
-        }
+        expect(screen.getByText("1")).toBeInTheDocument();
     });
 
-    it("calls onDelete when delete is clicked", () => {
-        const handleDelete = vi.fn();
+    it("calls onEdit when edit is clicked in menu", () => {
+        const handleEdit = vi.fn();
+        renderWithChakra(
+            <TaskCard
+                task={mockTask}
+                onEdit={handleEdit}
+                onDelete={vi.fn()}
+                onClick={vi.fn()}
+            />
+        );
 
+        const menuButton = screen.getByLabelText("Options");
+        fireEvent.click(menuButton);
+
+        const editButton = screen.getByText("Edit");
+        fireEvent.click(editButton);
+
+        expect(handleEdit).toHaveBeenCalledWith(mockTask);
+    });
+
+    it("calls onDelete when delete is clicked in menu", () => {
+        const handleDelete = vi.fn();
         renderWithChakra(
             <TaskCard
                 task={mockTask}

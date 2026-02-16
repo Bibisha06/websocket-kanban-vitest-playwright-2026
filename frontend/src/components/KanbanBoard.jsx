@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import {
   Box,
@@ -68,7 +68,15 @@ function KanbanBoard() {
     return () => newSocket.close();
   }, []);
 
-  const handleDragEnd = (result) => {
+  const tasksByStatus = useMemo(() => {
+    return {
+      todo: tasks.filter(t => t.status === "todo"),
+      inprogress: tasks.filter(t => t.status === "inprogress"),
+      done: tasks.filter(t => t.status === "done"),
+    };
+  }, [tasks]);
+
+  const handleDragEnd = useCallback((result) => {
     if (!result.destination) return;
 
     const { source, destination, draggableId } = result;
@@ -82,34 +90,43 @@ function KanbanBoard() {
 
     const newStatus = destination.droppableId;
 
+    // OPTIMISTIC UPDATE
+    setTasks((prevTasks) => {
+      const taskToMove = prevTasks.find(t => t._id === draggableId);
+      if (!taskToMove) return prevTasks;
+
+      const updatedTask = { ...taskToMove, status: newStatus };
+      return prevTasks.map(t => t._id === draggableId ? updatedTask : t);
+    });
+
     if (socket) {
       socket.emit("task:move", { taskId: draggableId, newStatus });
     }
-  };
+  }, [socket]);
 
-  const handleCreateTask = (taskData) => {
+  const handleCreateTask = useCallback((taskData) => {
     if (socket) socket.emit("task:create", taskData);
     setShowTaskForm(false);
-  };
+  }, [socket]);
 
-  const handleUpdateTask = (taskData) => {
+  const handleUpdateTask = useCallback((taskData) => {
     if (socket) socket.emit("task:update", taskData);
     setEditingTask(null);
-  };
+  }, [socket]);
 
-  const handleDeleteTask = (taskId) => {
+  const handleDeleteTask = useCallback((taskId) => {
     if (socket && window.confirm("Are you sure you want to delete this task?")) {
       socket.emit("task:delete", taskId);
     }
-  };
+  }, [socket]);
 
-  const handleEditTask = (task) => {
+  const handleEditTask = useCallback((task) => {
     setEditingTask(task);
-  };
+  }, []);
 
-  const getTasksByStatus = (status) => {
-    return tasks.filter((task) => task.status === status);
-  };
+  const handleViewTask = useCallback((task) => {
+    setSelectedTask(task);
+  }, []);
 
   const columns = [
     { id: "todo", title: "To Do", color: "blue" },
@@ -164,7 +181,7 @@ function KanbanBoard() {
       <DragDropContext onDragEnd={handleDragEnd}>
         <Flex gap={4} px={6} pb={6} flex="1" overflow="hidden">
           {columns.map((column) => {
-            const columnTasks = getTasksByStatus(column.id);
+            const columnTasks = tasksByStatus[column.id] || [];
             return (
               <Flex
                 key={column.id}
@@ -247,7 +264,7 @@ function KanbanBoard() {
                                   task={task}
                                   onEdit={handleEditTask}
                                   onDelete={handleDeleteTask}
-                                  onClick={() => setSelectedTask(task)}
+                                  onClick={() => handleViewTask(task)}
                                 />
                               </Box>
                             )}
